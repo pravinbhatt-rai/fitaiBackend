@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+!.env.example
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+models/weights/*.pt
+models/weights/*.bin
+models/weights/*.safetensors
+*.log
