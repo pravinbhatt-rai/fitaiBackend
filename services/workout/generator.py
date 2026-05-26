@@ -7,7 +7,7 @@ from pydantic import BaseModel
 
 from models.user import User
 from models.workout import ExerciseLog, WorkoutSession
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from services.workout.exercise_library import (
     EXERCISE_LIBRARY,
     get_exercises_by_equipment,

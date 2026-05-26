@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from models.nutrition import FoodLog
 from models.user import User
 from services.nutrition.analyzer import DailyGoals
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.logger import get_logger
 
 logger = get_logger("fitai.nutrition.meal_planner")

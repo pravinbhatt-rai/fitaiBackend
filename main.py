@@ -20,7 +20,7 @@ from api.routes import (
 )
 
 from services.achievements.engine import check_and_award
-from services.ollama.client import ollama_client
+from services.groq.client import groq_client as ollama_client
 from utils.auth import verify_token
 from utils.database import AsyncSessionLocal, init_db
 from utils.logger import logger
@@ -87,7 +87,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="FitAI Backend",
-    description="AI-powered fitness app — local Ollama edition",
+    description="AI-powered fitness app — Groq cloud AI edition",
     version="1.0.0",
     lifespan=lifespan,
 )

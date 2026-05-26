@@ -11,7 +11,7 @@ from api.middleware.auth import get_current_user
 from models.user import User
 from models.workout import ExerciseLog, WorkoutSession
 from services.achievements.engine import calculate_level, check_and_award
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from services.workout.exercise_library import (
     EXERCISE_LIBRARY,
     calculate_calories_burned,

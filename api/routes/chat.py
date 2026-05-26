@@ -16,7 +16,7 @@ from api.middleware.auth import get_current_user
 from models.chat import ChatMessage, ChatSession
 from models.user import User
 from services.chat.agent import FitAIAgent
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.database import AsyncSessionLocal, get_session
 from utils.logger import get_logger
 

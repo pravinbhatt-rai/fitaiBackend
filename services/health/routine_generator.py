@@ -10,7 +10,7 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 from models.user import User
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.logger import get_logger
 
 logger = get_logger("fitai.health.routine")

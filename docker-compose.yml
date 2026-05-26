@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   api:
     build: .
@@ -14,6 +12,9 @@ services:
     restart: unless-stopped
     environment:
       - OLLAMA_BASE_URL=http://ollama:11434
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   ollama:
     image: ollama/ollama
@@ -22,6 +23,9 @@ services:
     volumes:
       - ollama_data:/root/.ollama
     restart: unless-stopped
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
 volumes:
   ollama_data:

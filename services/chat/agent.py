@@ -17,7 +17,7 @@ from models.user import User
 from models.workout import WorkoutSession
 from services.achievements.streak import get_all_streaks
 from services.nutrition.analyzer import calculate_daily_goals
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.logger import get_logger
 
 logger = get_logger("fitai.chat.agent")
@@ -186,9 +186,9 @@ class FitAIAgent:
         Yields "data: {...}\\n\\n" strings. The final event has done=True and
         includes '_r' (full response text) for the route to save to DB.
         """
-        model = "llava" if image_base64 else "llama3"
+        model = "llama3.2:1b"
 
-        # If image provided, inject analysis instruction into the last user message
+        # If image provided, describe as text since small models can't process images
         if image_base64:
             msgs = []
             for m in messages:
@@ -196,9 +196,9 @@ class FitAIAgent:
             for i in range(len(msgs) - 1, -1, -1):
                 if msgs[i].get("role") == "user":
                     msgs[i]["content"] = (
-                        "The user sent a food image. Analyse what you see — "
-                        "identify the food, estimate the calories and macros. "
-                        "Offer to log it for them.\n\n"
+                        "The user sent a photo of food. "
+                        "Please help them estimate the calories and macros based on what they describe. "
+                        "Ask them what food is in the image if they haven't described it.\n\n"
                         + (msgs[i].get("content") or "")
                     )
                     break

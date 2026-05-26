@@ -1,6 +1,6 @@
 from fastapi import Request
 
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 
 
 def get_ollama(request: Request) -> OllamaClient:

@@ -1,12 +1,15 @@
+import base64
+import io
 import json
 import re
 from typing import Optional
 
 from fastapi import HTTPException
+from PIL import Image as PILImage
 from pydantic import BaseModel
 
 from models.user import User
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.logger import get_logger
 
 logger = get_logger("fitai.nutrition.analyzer")
@@ -74,29 +77,63 @@ def _extract_json(text: str) -> dict:
     raise ValueError(f"No valid JSON object found in LLM response (first 300 chars): {text[:300]!r}")
 
 
+def _describe_image_with_pil(image_base64: str) -> str:
+    """Extract colour/brightness clues from the image to help the LLM guess the food."""
+    try:
+        raw = base64.b64decode(image_base64)
+        img = PILImage.open(io.BytesIO(raw)).convert("RGB")
+        img.thumbnail((64, 64))
+        pixels = list(img.getdata())
+        r_avg = sum(p[0] for p in pixels) / len(pixels)
+        g_avg = sum(p[1] for p in pixels) / len(pixels)
+        b_avg = sum(p[2] for p in pixels) / len(pixels)
+        brightness = (r_avg + g_avg + b_avg) / 3
+
+        if r_avg > g_avg and r_avg > b_avg:
+            color_hint = "warm red/orange tones (could be meat, tomato dish, curry)"
+        elif g_avg > r_avg and g_avg > b_avg:
+            color_hint = "green tones (could be salad, vegetables, curry with greens)"
+        elif b_avg > r_avg and b_avg > g_avg:
+            color_hint = "cool/blue tones (could be seafood, blueberries)"
+        elif r_avg > 180 and g_avg > 160 and b_avg < 120:
+            color_hint = "golden/yellow tones (could be rice, eggs, pasta, fried food)"
+        elif brightness < 80:
+            color_hint = "dark tones (could be chocolate, grilled/charred food, coffee)"
+        else:
+            color_hint = "mixed/neutral tones (mixed dish)"
+
+        return f"Food photo with {color_hint}. Brightness level: {'bright/light' if brightness > 150 else 'medium' if brightness > 80 else 'dark'}."
+    except Exception:
+        return "Food photo (could not extract colour info)."
+
+
 async def analyze_food_image(
     image_base64: str,
     weight_grams: Optional[float],
     ollama: OllamaClient,
 ) -> FoodAnalysis:
+    """
+    Sends the image directly to the vision model (llama-3.2-11b-vision-preview via Groq).
+    The model can actually see and identify the food in the photo.
+    """
     weight_note = (
-        f"The food weighs exactly {weight_grams}g. Calculate macros for that precise weight."
+        f"The food weighs exactly {weight_grams}g — calculate all macros for this exact weight."
         if weight_grams
-        else "Estimate the serving size from what is visible in the image."
+        else "Estimate a standard single serving size."
     )
 
     def _build_prompt(strict: bool = False) -> str:
-        if strict:
-            return (
-                f"Analyze this food image. Output ONLY a JSON object — no text before or after, "
-                f"no markdown fences. Required schema:\n{_JSON_SCHEMA}\n{weight_note}"
-            )
-        return (
-            "You are an expert nutritionist AI. Analyze the food in the image.\n"
+        base = (
+            "Look at this food image carefully. Identify exactly what food is shown.\n"
             f"{weight_note}\n"
-            "Respond ONLY with valid JSON matching this schema exactly:\n"
+        )
+        if strict:
+            return base + f"Output ONLY a JSON object — no text before or after:\n{_JSON_SCHEMA}"
+        return (
+            base +
+            "You are an expert nutritionist. Respond ONLY with valid JSON matching this schema:\n"
             f"{_JSON_SCHEMA}\n"
-            "No extra text, no markdown, just the JSON object."
+            "No extra text, no markdown — just the JSON object."
         )
 
     last_exc: Exception = RuntimeError("unreachable")
@@ -104,7 +141,7 @@ async def analyze_food_image(
         prompt = _build_prompt(strict=attempt == 1)
         try:
             raw = await ollama.chat(
-                model="llava",
+                model="vision",
                 messages=[{"role": "user", "content": prompt}],
                 images=[image_base64],
                 stream=False,
@@ -150,7 +187,7 @@ async def analyze_food_text(
         prompt = _build_prompt(strict=attempt == 1)
         try:
             raw = await ollama.chat(
-                model="llama3",
+                model="llama3.2:1b",
                 messages=[{"role": "user", "content": prompt}],
                 stream=False,
             )

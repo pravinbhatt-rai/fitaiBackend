@@ -12,12 +12,13 @@ from api.middleware.auth import get_current_user
 from models.health import HealthLog, HealthScore
 from models.nutrition import FoodLog, WaterLog
 from models.user import User
+from models.game import JogSession
 from models.workout import WorkoutSession
 from services.achievements.streak import get_all_streaks
 from services.health.routine_generator import generate_daily_routine, generate_health_insights
 from services.health.scorer import calculate_health_score, get_health_trend
 from services.nutrition.analyzer import calculate_daily_goals
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.database import get_session
 from utils.logger import get_logger
 
@@ -398,6 +399,33 @@ async def health_summary(
     total_water = int(r_water.scalar_one() or 0)
     goals = calculate_daily_goals(current_user)
 
+    # Today's workout calories + session count
+    r_wk = await db.execute(
+        select(func.sum(WorkoutSession.total_calories), func.count(WorkoutSession.id))
+        .where(WorkoutSession.user_id == current_user.id)
+        .where(func.date(WorkoutSession.completed_at) == today)
+        .where(WorkoutSession.completed_at.isnot(None))
+    )
+    wk_row = r_wk.first()
+    workout_calories = round(float(wk_row[0] or 0), 1)
+    workout_sessions = int(wk_row[1] or 0)
+
+    # Today's jog calories, distance, and session count
+    r_jog = await db.execute(
+        select(
+            func.sum(JogSession.calories),
+            func.sum(JogSession.distance_km),
+            func.count(JogSession.id),
+        )
+        .where(JogSession.user_id == current_user.id)
+        .where(func.date(JogSession.end_time) == today)
+        .where(JogSession.end_time.isnot(None))
+    )
+    jog_row = r_jog.first()
+    jog_calories = round(float(jog_row[0] or 0), 1)
+    jog_distance = round(float(jog_row[1] or 0), 2)
+    jog_sessions = int(jog_row[2] or 0)
+
     return {
         "today_log": today_log,
         "today_score": today_score,
@@ -406,6 +434,18 @@ async def health_summary(
             "total_ml": total_water,
             "goal_ml": int(goals.water_ml),
             "pct": round(min(total_water / max(goals.water_ml, 1) * 100, 100), 1),
+        },
+        "activity_today": {
+            "workout": {
+                "sessions": workout_sessions,
+                "calories_burned": workout_calories,
+            },
+            "jog": {
+                "sessions": jog_sessions,
+                "calories_burned": jog_calories,
+                "distance_km": jog_distance,
+            },
+            "total_calories_burned": round(workout_calories + jog_calories, 1),
         },
         "user": {
             "name": current_user.name,

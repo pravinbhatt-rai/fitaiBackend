@@ -22,7 +22,7 @@ from services.nutrition.analyzer import (
     calculate_daily_goals,
 )
 from services.nutrition.meal_planner import MealPlan, generate_meal_plan
-from services.ollama.client import OllamaClient
+from services.groq.client import GroqClient as OllamaClient
 from utils.database import get_session
 from utils.logger import get_logger
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/api/nutrition", tags=["nutrition"])
 logger = get_logger("fitai.routes.nutrition")
 
 _MAX_IMAGE_BYTES = 10 * 1024 * 1024  # 10 MB
-_ALLOWED_MIME = {"image/jpeg", "image/png"}
+_ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", "application/octet-stream"}
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
